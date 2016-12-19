@@ -1,0 +1,49 @@
+-- trigger for autoincrementing the id field
+create sequence id_folder_seq start with 1;
+
+CREATE OR REPLACE TRIGGER folder_id
+BEFORE INSERT ON folders 
+FOR EACH ROW
+
+begin
+  SELECT id_folder_seq.NEXTVAL
+  INTO   :new.id
+  FROM   dual;
+end;
+/
+
+-- procedure to list files and folders
+CREATE OR REPLACE PROCEDURE LS 
+(
+  folder_id IN NUMBER  
+) as 
+
+begin
+  for folder in (
+                      select lpad(' ',2*(level-1)) as padding, name as folder_name, id as folder_id
+                      from folders
+                      start with p_id = folder_id
+                      connect by prior id = p_id
+                    )
+
+  loop
+    Dbms_Output.Put_Line (folder.padding || folder.folder_name );
+    for file in (
+                      select name, content
+                        from files
+                        where p_id = folder.folder_id
+                        order by name
+                     )
+    loop
+      Dbms_Output.Put_Line ( folder.padding || '  ' || 'Filename: ' || file.name || ' ; content: ' || file.content );
+    end loop;
+  end loop;
+
+end LS;
+
+-- calling the function
+set serveroutput on
+begin 
+  ls(22);
+end;
+/
